@@ -81,7 +81,7 @@ namespace Google.Protobuf.FiddlerInspector
 #if DEBUG
                 FiddlerApplication.Log.LogString("Decoding:messageTypeName is null");
 #endif
-                return null;
+                // return null;
             }
             string retval = string.Empty;
         

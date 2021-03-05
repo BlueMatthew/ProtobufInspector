@@ -30,9 +30,12 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+    <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Fiddler">
-      <HintPath>C:\Program Files\Fiddler\Fiddler.exe</HintPath>
+      <HintPath>C:\Users\User\AppData\Local\Programs\Fiddler\Fiddler.exe</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -61,10 +64,14 @@
     <Compile Include="ProtobufInspectorView.Designer.cs" />
     <Compile Include="ProtobufResponseInspector.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="ProtobufInspectorView.resx">
+      <DependentUpon>ProtobufInspectorView.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y $(ProjectDir)\$(OutDir)$(TargetName)$(TargetExt) "C:\Program Files\Fiddler\Inspectors\"
-copy /Y $(ProjectDir)\$(OutDir)$(TargetName).pdb "C:\Program Files\Fiddler\Inspectors"
-</PostBuildEvent>
+    <PostBuildEvent>copy /Y $(ProjectDir)\$(OutDir)$(TargetName)$(TargetExt) "C:\Users\User\AppData\Local\Programs\Fiddler\Inspectors\"
+copy /Y $(ProjectDir)\$(OutDir)$(TargetName).pdb "C:\Users\User\AppData\Local\Programs\Fiddler\Inspectors\"</PostBuildEvent>
   </PropertyGroup>
 </Project>
