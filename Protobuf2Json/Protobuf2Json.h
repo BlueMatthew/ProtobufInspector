@@ -32,6 +32,7 @@ typedef struct
 	DWORD options;
 } PB2JSON_DESCRIPTOR_SET_SRC_INFO;
 
+extern "C" PROTOBUF2JSON_API BOOL ConvertRawMessageToJson(const unsigned char* messageData, DWORD lengthOfMessageData, DWORD options, char **outputString, DWORD *lengthOfOutputString);
 extern "C" PROTOBUF2JSON_API BOOL ConvertMessageWithProtoFilesToJson(const PB2JSON_PROTOS_SRC_INFO *src, char **outputString, DWORD *lengthOfOutputString);
 extern "C" PROTOBUF2JSON_API BOOL ConvertMessageWithDescriptorSetToJson(const PB2JSON_DESCRIPTOR_SET_SRC_INFO *src, char **outputString, DWORD *lengthOfOutputString);
 extern "C" PROTOBUF2JSON_API BOOL FreeOutputString(char *outputString, DWORD lengthOfOutputString);

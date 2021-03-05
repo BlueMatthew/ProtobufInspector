@@ -19,6 +19,8 @@
 #include <google/protobuf/compiler/importer.h>
 #include <google/protobuf/util/json_util.h>
 
+#include "RawTextFormat.h"
+
 
 using namespace google::protobuf;
 using namespace google::protobuf::io;
@@ -74,8 +76,62 @@ struct InputMemoryStream : virtual InputMemoryBuffer, std::istream
 	}
 };
 
+BOOL ConvertRawMessageToJson(const unsigned char* messageData, DWORD lengthOfMessageData, DWORD options, char **outputString, DWORD *lengthOfOutputString)
+{
+	// HACK:  Define an EmptyMessage type to use for decoding.
+	DescriptorPool pool;
+	FileDescriptorProto file;
+	file.set_name("empty_message.proto");
+	file.add_message_type()->set_name("EmptyMessage");
+	GOOGLE_CHECK(pool.BuildFile(file) != NULL);
+	
+	const Descriptor *descriptor = pool.FindMessageTypeByName("EmptyMessage");
+	if (NULL == descriptor)
+	{
+		// FormatError(outputString, lengthOfOutputString, ERROR_NO_MESSAGE_TYPE, src->messageTypeName);
+		return FALSE;
+	}
+
+	DynamicMessageFactory factory(&pool);
+	const Message *protoType = factory.GetPrototype(descriptor);
+	if (NULL == protoType)
+	{
+		return FALSE;
+	}
+	std::unique_ptr<Message> message(protoType->New());
+	if (NULL == message.get())
+	{
+		return FALSE;
+	}
+	if (!message->ParseFromArray(reinterpret_cast<const void *>(messageData), lengthOfMessageData))
+	{		
+		return FALSE;
+	}
+
+	std::string jsonString;
+	RawTextFormat::Printer printer;
+	if (printer.PrintToString(*(message.get()), &jsonString))
+	{
+		if (NULL != outputString)
+		{
+			*outputString = (char *)::LocalAlloc(LPTR, jsonString.length() + 1);
+			::CopyMemory(*outputString, jsonString.c_str(), jsonString.length());
+			if (NULL != lengthOfOutputString) *lengthOfOutputString = (DWORD)jsonString.length();
+		}
+
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
 BOOL ConvertMessageWithProtoFilesToJson(const PB2JSON_PROTOS_SRC_INFO *src, char **outputString, DWORD *lengthOfOutputString)
 {
+	if (src->numberOfProtoFileNames == 0 || src->messageTypeName == NULL || strlen(src->messageTypeName) == 0)
+	{
+		return ConvertRawMessageToJson(src->messageData, src->lengthOfMessageData, src->options, outputString, lengthOfOutputString);
+	}
+
 	DiskSourceTree sourceTree;
 	sourceTree.MapPath("", src->protoPath);
 	Protobuf2JsonErrorCollector errorCollector;
@@ -144,6 +200,11 @@ BOOL ConvertMessageWithProtoFilesToJson(const PB2JSON_PROTOS_SRC_INFO *src, char
 
 BOOL ConvertMessageWithDescriptorSetToJson(const PB2JSON_DESCRIPTOR_SET_SRC_INFO *src, char **outputString, DWORD *lengthOfOutputString)
 {
+	if (src->descriptorSetFileName == NULL || strlen(src->descriptorSetFileName) == 0 || src->messageTypeName == NULL || strlen(src->messageTypeName) == 0)
+	{
+		return ConvertRawMessageToJson(src->messageData, src->lengthOfMessageData, src->options, outputString, lengthOfOutputString);
+	}
+
 	HANDLE hFile = CreateFileA(src->descriptorSetFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 	if (hFile == INVALID_HANDLE_VALUE)
 	{

@@ -104,8 +104,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y $(OutDir)$(TargetName)$(TargetExt)  "C:\Program Files\Fiddler\"
-copy /Y $(OutDir)$(TargetName).pdb  "C:\Program Files\Fiddler\"</Command>
+      <Command>copy /Y $(OutDir)$(TargetName)$(TargetExt)  "C:\Users\User\AppData\Local\Programs\Fiddler\"
+copy /Y $(OutDir)$(TargetName).pdb  "C:\Users\User\AppData\Local\Programs\Fiddler\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -126,8 +126,8 @@ copy /Y $(OutDir)$(TargetName).pdb  "C:\Program Files\Fiddler\"</Command>
       <AdditionalDependencies>libprotobufd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y $(OutDir)$(TargetName)$(TargetExt)  "C:\Program Files\Fiddler\"
-copy /Y $(OutDir)$(TargetName).pdb  "C:\Program Files\Fiddler\"</Command>
+      <Command>copy /Y $(OutDir)$(TargetName)$(TargetExt)  "C:\Users\User\AppData\Local\Programs\Fiddler\"
+copy /Y $(OutDir)$(TargetName).pdb  "C:\Users\User\AppData\Local\Programs\Fiddler\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -172,18 +172,24 @@ copy /Y $(OutDir)$(TargetName).pdb  "C:\Program Files\Fiddler\"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Protobuf2Json.h" />
+    <ClInclude Include="RawTextFormat.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="Protobuf2Json.cpp" />
+    <ClCompile Include="RawTextFormat.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Protobuf2Json.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
