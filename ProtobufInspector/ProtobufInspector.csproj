@@ -58,10 +58,13 @@
     <Compile Include="FiddlerApp.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Protobuf2Json.cs" />
+    <Compile Include="ProtobufInspectorContext.cs" />
     <Compile Include="ProtobufInspectorView.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="ProtobufInspectorView.Designer.cs" />
+    <Compile Include="ProtobufInspector.cs" />
+    <Compile Include="ProtobufRequestInspector.cs" />
     <Compile Include="ProtobufResponseInspector.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -15,13 +15,21 @@ namespace Google.Protobuf.FiddlerInspector
             FiddlerApplication.Log.LogString(log);
         }
 
-        public static byte[] DecodeContent(Fiddler.Session session)
+        public static bool IsProtobufPacket(HTTPHeaders headers)
         {
-            byte[] body = session.ResponseBody;
-
-            if (session.ResponseHeaders.Exists("Content-Encoding"))
+            if (null == headers)
             {
-                List<HTTPHeaderItem> headerItems = session.ResponseHeaders.FindAll("Content-Encoding");
+                return false;
+            }
+            
+            return null != headers && (headers.ExistsAndContains("Content-Type", "application/x-protobuf") || headers.ExistsAndContains("Content-Type", "application/x-google-protobuf"));
+        }
+        
+        public static byte[] DecodeContent(byte[] body, Fiddler.HTTPHeaders headers)
+        {
+            if (headers.Exists("Content-Encoding"))
+            {
+                List<HTTPHeaderItem> headerItems = headers.FindAll("Content-Encoding");
                 string encoding = null;
                 if (headerItems != null)
                 {
@@ -56,22 +64,16 @@ namespace Google.Protobuf.FiddlerInspector
 
         // Use the same rule like Charles to parse message type and decriptorset url
         // Refer to: https://www.charlesproxy.com/documentation/using-charles/protocol-buffers/
-        public static bool ParseMessageTypeNameAndDescriptorSetUrl(Session session, out string messageTypeName, out string descriptorSetUrl)
+        public static bool ParseMessageTypeNameAndDescriptorSetUrl(HTTPHeaders headers, out string messageTypeName, out string descriptorSetUrl)
         {
             messageTypeName = "";
             descriptorSetUrl = "";
 
-            if (null == session)
-            {
-                return false;
-            }
-
-            HTTPResponseHeaders headers = session.ResponseHeaders;
             if (null == headers || !headers.Exists("Content-Type"))
             {
                 return false;
             }
-            
+
             messageTypeName = headers.GetTokenValue("Content-Type", "messageType");
             if (null == messageTypeName)
             {
@@ -109,51 +111,50 @@ namespace Google.Protobuf.FiddlerInspector
             return protoFiles.ToArray();
         }
 
-        public static string protoPath
+        public static string GetProtoPath(string configKey)
         {
-            get { return FiddlerApplication.Prefs.GetStringPref("ProtoPath", ""); }
-            set
-            {
-                FiddlerApplication.Prefs.SetStringPref("ProtoPath", value);
-            }
+            return FiddlerApplication.Prefs.GetStringPref(configKey + "ProtoPath", "");
         }
 
-        public static List<string> recentMessageTypes
+        public static void SetProtoPath(string value, string configKey)
         {
-            get
-            {
-                List<string> array = new List<string>(8);
-                string recentMessageTypes = FiddlerApplication.Prefs.GetStringPref("RecentMessageTypes", "");
+            FiddlerApplication.Prefs.SetStringPref(configKey + "ProtoPath", value);
+        }
+
+        public static List<string> GetRecentMessageTypes(string configKey)
+        {
+            List<string> array = new List<string>(8);
+                string recentMessageTypes = FiddlerApplication.Prefs.GetStringPref(configKey + "RecentMessageTypes", "");
                 if (recentMessageTypes != null && recentMessageTypes.Length > 0)
                 {
                     string[] recentMessageTypesArray = recentMessageTypes.Split('\t');
-                    for (int idx = 0; idx < recentMessageTypesArray.Length; idx++)
+                    for (int idx = 0; idx<recentMessageTypesArray.Length; idx++)
                     {
                         array.Add(recentMessageTypesArray[idx]);
                     }
                 }
 
                 return array;
-            }
-            set
-            {
-                FiddlerApplication.Prefs.SetStringPref("RecentMessageTypes", (null == value || value.Count == 0) ? "" : String.Join("\t", value));
-            }
         }
 
-        public static void CleanRecentMessageTypes()
+        public static void SetRecentMessageTypes(List<string> value, string configKey)
         {
-            FiddlerApplication.Prefs.SetStringPref("RecentMessageTypes", "");
+           FiddlerApplication.Prefs.SetStringPref(configKey + "RecentMessageTypes", (null == value || value.Count == 0) ? "" : String.Join("\t", value));
         }
 
-        public static void UpdateRecentMessageType(string recentMessageType)
+        public static void CleanRecentMessageTypes(string configKey)
+        {
+            FiddlerApplication.Prefs.SetStringPref(configKey + "RecentMessageTypes", "");
+        }
+
+        public static void UpdateRecentMessageType(string recentMessageType, string configKey)
         {
             if (null == recentMessageType || recentMessageType.Length == 0)
             {
                 return;
             }
 
-            List<string> recentMessageTypes = FiddlerApp.recentMessageTypes;
+            List<string> recentMessageTypes = FiddlerApp.GetRecentMessageTypes(configKey);
             if (null == recentMessageTypes)
             {
                 recentMessageTypes = new List<string>(1);
@@ -169,7 +170,7 @@ namespace Google.Protobuf.FiddlerInspector
                 }
             }
 
-            FiddlerApp.recentMessageTypes = recentMessageTypes;
+            FiddlerApp.SetRecentMessageTypes(recentMessageTypes, configKey);
         }
 
     }

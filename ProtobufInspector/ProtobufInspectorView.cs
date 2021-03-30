@@ -15,33 +15,61 @@ namespace Google.Protobuf.FiddlerInspector
 {
     public partial class ProtobufInspectorView : UserControl
     {
-        protected Session session;
-
+        protected InspectorContext inspectorContext;
+        
         private const uint BM_CLICK = 0x00F5;
 
         [DllImport("User32.Dll", EntryPoint = "PostMessageA", SetLastError = true)]
         public static extern int PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+
         public ProtobufInspectorView()
         {
-            InitializeComponent();
-
-            this.txtDirectory.Text = FiddlerApp.protoPath;
-
-            UpdateMessageTypes(FiddlerApp.recentMessageTypes);
-
+            this.inspectorContext = inspectorContext;
         }
 
-        public void UpdateData(Session session)
+        public HTTPHeaders GetHeaders()
         {
-            this.session = session;
+            return inspectorContext.GetHeaders();
+            
+        }
 
+        // IBaseInspector2.body
+        public byte[] GetBody()
+        {
+            return inspectorContext.GetBody();
+        }
+
+
+        public void AssignSession(Session session)
+        {
+            inspectorContext.AssignSession(session);
+        }
+        
+        public ProtobufInspectorView(InspectorContext inspectorContext)
+        {
+            this.inspectorContext = inspectorContext;
+            InitializeComponent();
+
+            this.txtDirectory.Text = FiddlerApp.GetProtoPath(inspectorContext.GetName());
+
+            UpdateMessageTypes(FiddlerApp.GetRecentMessageTypes(inspectorContext.GetName()));
+        }
+
+        
+        public void UpdateData()
+        {
             ClearView();
+            
+            HTTPHeaders headers = inspectorContext.Headers;
+            if (!FiddlerApp.IsProtobufPacket(headers))
+            {
+                return;
+            }
 
             string messageTypeName = "";
             string descriptorSetUrl = "";
-
-            if (null != session && FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(session, out messageTypeName, out descriptorSetUrl))
+            if (null != headers && FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(headers, out messageTypeName, out descriptorSetUrl))
             {
                 this.cmbMessageType.Text = messageTypeName == null ? "" : messageTypeName;
                 this.cmbMessageType.Enabled = (messageTypeName == null || messageTypeName.Length == 0);
@@ -51,24 +79,17 @@ namespace Google.Protobuf.FiddlerInspector
                 this.cmbMessageType.Enabled = true;
             }
 
-            UpdateData();
-        }
-
-        protected void UpdateData()
-        {
-            if (this.session == null/* || this.responseHeaders == null || this.responseBody == null*/)
+            if (inspectorContext.IsInvalidSession())
             {
                 return;
             }
 
-            string messageTypeName = "";
-            string descriptorSetUrl = "";
-
-            if (!FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(session, out messageTypeName, out descriptorSetUrl))
+            
+            if (!FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(headers, out messageTypeName, out descriptorSetUrl))
             {
                 messageTypeName = this.cmbMessageType.Text;
             }
-            
+
             string protoPath = this.txtDirectory.Text;
             bool printEnumAsInteger = this.chkboxEnumValue.Checked;
             bool printPrimitiveFields = this.chkboxPrintPrimitiveFields.Checked;
@@ -76,7 +97,7 @@ namespace Google.Protobuf.FiddlerInspector
             try
             {
                 string jsonString = null;
-                byte[] body = FiddlerApp.DecodeContent(session);
+                byte[] body = FiddlerApp.DecodeContent(inspectorContext.RawBody, headers);
 
                 if (null != body)
                 {
@@ -105,7 +126,7 @@ namespace Google.Protobuf.FiddlerInspector
                     {
                         tvJson.EndUpdate();
                     }
-                    
+
                 }
             }
             catch (Exception ex)
@@ -115,6 +136,30 @@ namespace Google.Protobuf.FiddlerInspector
             }
         }
 
+        /*
+        public void UpdateData(Session session)
+        {
+            this.session = session;
+
+            ClearView();
+
+            string messageTypeName = "";
+            string descriptorSetUrl = "";
+
+            if (null != session && FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(session, out messageTypeName, out descriptorSetUrl))
+            {
+                this.cmbMessageType.Text = messageTypeName == null ? "" : messageTypeName;
+                this.cmbMessageType.Enabled = (messageTypeName == null || messageTypeName.Length == 0);
+            }
+            else
+            {
+                this.cmbMessageType.Enabled = true;
+            }
+
+            UpdateData();
+        }
+        */
+        
         private void AddNode(object token, TreeNode inTreeNode)
         {
             if (token == null)
@@ -175,7 +220,7 @@ namespace Google.Protobuf.FiddlerInspector
             if (cmbMessageType.SelectedIndex == cmbMessageType.Items.Count - 1)
             {
                 cmbMessageType.Items.Clear();
-                FiddlerApp.CleanRecentMessageTypes();
+                FiddlerApp.CleanRecentMessageTypes(inspectorContext.GetName());
                 return;
             }
             PostMessage(this.btnReload.Handle, BM_CLICK, IntPtr.Zero, IntPtr.Zero);
@@ -190,7 +235,7 @@ namespace Google.Protobuf.FiddlerInspector
 
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    FiddlerApp.protoPath = dialog.SelectedPath;
+                    FiddlerApp.SetProtoPath(dialog.SelectedPath, inspectorContext.GetName());
                     this.txtDirectory.Text = dialog.SelectedPath;
 
                     UpdateData();

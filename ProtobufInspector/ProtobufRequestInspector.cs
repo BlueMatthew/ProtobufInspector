@@ -9,32 +9,21 @@ using Fiddler;
 
 namespace Google.Protobuf.FiddlerInspector
 {
-    public class ProtobufResponseInspector : ProtobufInspector, IResponseInspector2
-    {
-        /*
-        static ProtobufResponseInspector()
-        {
-            System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(assembly.Location);
-            string version = fvi.FileVersion;
-
-            FiddlerApp.LogString("ProtobufInspector is loaded, (version:" + fvi.FileVersion + ").");
-        }
-        */
-        
-        public ProtobufResponseInspector() : base()
+    public class ProtobufRequestInspector : ProtobufInspector, IRequestInspector2
+    {   
+        public ProtobufRequestInspector() : base()
         {
         }
 
         protected override InspectorContext CreateInspectorContext()
         {
-            return new ResponseInspectorContext();
+            return new RequestInspectorContext();
         }
 
-        // IResponseInspector2.headers
-        public HTTPResponseHeaders headers
+        // IRequestInspector2.headers
+        public HTTPRequestHeaders headers
         {
-            get { return inspectorContext.Headers as HTTPResponseHeaders; }
+            get { return inspectorContext.Headers as HTTPRequestHeaders; }
             set
             {
                 inspectorContext.Headers = value;
@@ -60,11 +49,11 @@ namespace Google.Protobuf.FiddlerInspector
         }
 
         // IBaseInspector2.bReadOnly
-        public bool bReadOnly {
+        public bool bReadOnly
+        {
             get { return true; }
             set {}
         }
-       
 
     }
 }
