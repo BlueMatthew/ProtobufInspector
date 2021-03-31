@@ -37,6 +37,9 @@ namespace Google.Protobuf.FiddlerInspector
             get { return inspectorContext.Headers as HTTPResponseHeaders; }
             set
             {
+#if DEBUG
+                FiddlerApplication.Log.LogString("Res Headers Changed");
+#endif
                 inspectorContext.Headers = value;
                 inspectorView.UpdateData();
             }
@@ -48,6 +51,9 @@ namespace Google.Protobuf.FiddlerInspector
             get { return inspectorContext.RawBody; }
             set
             {
+#if DEBUG
+                FiddlerApplication.Log.LogString("Res Body Changed");
+#endif
                 inspectorContext.RawBody = value;
                 inspectorView.UpdateData();
             }
@@ -64,7 +70,14 @@ namespace Google.Protobuf.FiddlerInspector
             get { return true; }
             set {}
         }
-       
 
+        // IBaseInspector2.Clear
+        public void Clear()
+        {
+#if DEBUG
+            FiddlerApplication.Log.LogString("Res Clear");
+#endif
+            ClearInspector();
+        }
     }
 }

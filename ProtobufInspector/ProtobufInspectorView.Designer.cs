@@ -259,11 +259,18 @@ namespace Google.Protobuf.FiddlerInspector
 
         #endregion
 
-        protected void ClearView()
+        protected void ClearView(bool includingJson = true)
         {
-            this.tvJson.Nodes.Clear();
-            this.tvJson.Tag = null;
-            this.cmbMessageType.Text = "";
+            if (includingJson && this.tvJson.Nodes.Count > 0)
+            {
+                this.tvJson.Nodes.Clear();
+                this.tvJson.Tag = null;
+            }
+            
+            if (this.cmbMessageType.Text.Length > 0)
+            {
+                this.cmbMessageType.Text = "";
+            }
         }
     }
 }

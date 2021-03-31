@@ -26,8 +26,14 @@ namespace Google.Protobuf.FiddlerInspector
             get { return inspectorContext.Headers as HTTPRequestHeaders; }
             set
             {
-                inspectorContext.Headers = value;
-                inspectorView.UpdateData();
+                if (inspectorContext.Headers != value)
+                {
+#if DEBUG
+                    FiddlerApplication.Log.LogString("Req Headers Changed");
+#endif
+                    inspectorContext.Headers = value;
+                    inspectorView.UpdateData();
+                }
             }
         }
 
@@ -37,8 +43,14 @@ namespace Google.Protobuf.FiddlerInspector
             get { return inspectorContext.RawBody; }
             set
             {
-                inspectorContext.RawBody = value;
-                inspectorView.UpdateData();
+                if (inspectorContext.RawBody != value)
+                {
+#if DEBUG
+                    FiddlerApplication.Log.LogString("Req Body Changed");
+#endif
+                    inspectorContext.RawBody = value;
+                    inspectorView.UpdateData();
+                }
             }
         }
 
@@ -53,6 +65,15 @@ namespace Google.Protobuf.FiddlerInspector
         {
             get { return true; }
             set {}
+        }
+
+        // IBaseInspector2.Clear
+        public void Clear()
+        {
+#if DEBUG
+            FiddlerApplication.Log.LogString("Req Clear");
+#endif
+            ClearInspector();
         }
 
     }

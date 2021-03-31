@@ -16,9 +16,11 @@ namespace Google.Protobuf.FiddlerInspector
             Clear();
         }
 
-        public void AssignSession(Session session)
+        public bool AssignSession(Session session)
         {
+            bool changed = (this.session != session);
             this.session = session;
+            return changed;
         }
 
         public void Clear()

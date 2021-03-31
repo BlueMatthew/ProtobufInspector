@@ -21,30 +21,6 @@ namespace Google.Protobuf.FiddlerInspector
 
         [DllImport("User32.Dll", EntryPoint = "PostMessageA", SetLastError = true)]
         public static extern int PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
-
-
-        public ProtobufInspectorView()
-        {
-            this.inspectorContext = inspectorContext;
-        }
-
-        public HTTPHeaders GetHeaders()
-        {
-            return inspectorContext.GetHeaders();
-            
-        }
-
-        // IBaseInspector2.body
-        public byte[] GetBody()
-        {
-            return inspectorContext.GetBody();
-        }
-
-
-        public void AssignSession(Session session)
-        {
-            inspectorContext.AssignSession(session);
-        }
         
         public ProtobufInspectorView(InspectorContext inspectorContext)
         {
@@ -55,18 +31,33 @@ namespace Google.Protobuf.FiddlerInspector
 
             UpdateMessageTypes(FiddlerApp.GetRecentMessageTypes(inspectorContext.GetName()));
         }
-
         
         public void UpdateData()
         {
-            ClearView();
+#if DEBUG
+            FiddlerApplication.Log.LogString("UpdateData");
+#endif
             
-            HTTPHeaders headers = inspectorContext.Headers;
-            if (!FiddlerApp.IsProtobufPacket(headers))
+            if (inspectorContext.IsInvalidSession())
             {
+#if DEBUG
+                FiddlerApplication.Log.LogString("UpdateData exits for invalidated session");
+#endif
+                ClearView();
                 return;
             }
 
+            HTTPHeaders headers = inspectorContext.Headers;
+            if (!FiddlerApp.IsProtobufPacket(headers))
+            {
+#if DEBUG
+                FiddlerApplication.Log.LogString("UpdateData exits for non-protobuf session");
+#endif
+                ClearView();
+                return;
+            }
+
+            ClearView(false);
             string messageTypeName = "";
             string descriptorSetUrl = "";
             if (null != headers && FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(headers, out messageTypeName, out descriptorSetUrl))
@@ -78,17 +69,13 @@ namespace Google.Protobuf.FiddlerInspector
             {
                 this.cmbMessageType.Enabled = true;
             }
-
-            if (inspectorContext.IsInvalidSession())
-            {
-                return;
-            }
-
             
+            /*
             if (!FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(headers, out messageTypeName, out descriptorSetUrl))
             {
                 messageTypeName = this.cmbMessageType.Text;
             }
+            */
 
             string protoPath = this.txtDirectory.Text;
             bool printEnumAsInteger = this.chkboxEnumValue.Checked;
@@ -116,7 +103,12 @@ namespace Google.Protobuf.FiddlerInspector
                     tvJson.BeginUpdate();
                     try
                     {
-                        tvJson.Nodes.Clear();
+                        // Mostly tvJson was clear before
+                        if (tvJson.Nodes.Count > 0)
+                        {
+                            tvJson.Nodes.Clear();
+                        }
+
                         TreeNode rootNode = tvJson.Nodes.Add("JSON");
                         AddNode(jsonResult.JSONObject, rootNode);
                         tvJson.ExpandAll();

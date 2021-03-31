@@ -47,13 +47,27 @@ namespace Google.Protobuf.FiddlerInspector
         // Inspector2
         public override void AssignSession(Session oS)
         {
-#if DEBUG
-            FiddlerApplication.Log.LogString("AssignSession:" + oS.url);
-#endif
             base.AssignSession(oS);
 
-            inspectorContext.AssignSession(oS);
-            inspectorView.UpdateData();
+            if (inspectorContext.AssignSession(oS))
+            {
+#if DEBUG
+                FiddlerApplication.Log.LogString("AssignSession:" + inspectorContext.GetName() + " " + oS.url);
+#endif
+                inspectorView.UpdateData();
+            }
+        }
+
+        public override bool CommitAnyChanges(Session oS)
+        {
+            bool result = base.CommitAnyChanges(oS);
+
+#if DEBUG
+            FiddlerApplication.Log.LogString("CommitAnyChanges:" + inspectorContext.GetName() + " " + oS.url);
+#endif
+            // inspectorView.UpdateData();
+
+            return result;
         }
 
         // Inspector2
@@ -62,8 +76,7 @@ namespace Google.Protobuf.FiddlerInspector
             return 0;
         }
 
-        // IBaseInspector2.Clear
-        public void Clear()
+        public void ClearInspector()
         {
             inspectorContext.Clear();
             inspectorView.UpdateData();
