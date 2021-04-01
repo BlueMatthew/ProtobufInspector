@@ -38,7 +38,7 @@ namespace Google.Protobuf.FiddlerInspector
 #if DEBUG || OUTPUT_PERF_LOG
         public void UpdateData(string reason)
 #else
-        protected void UpdateData()
+        public void UpdateData()
 #endif
         {
 #if DEBUG || OUTPUT_PERF_LOG
