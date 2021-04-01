@@ -114,43 +114,46 @@ namespace Google.Protobuf.FiddlerInspector
 #if DEBUG || OUTPUT_PERF_LOG
                     FiddlerApplication.Log.LogString(inspectorContext.GetName() + " beginUpdate");
 #endif
+                    TreeNode rootNode = new TreeNode("Protobuf");
+
+                    Queue<KeyValuePair<object, TreeNode>> queue = new Queue<KeyValuePair<object, TreeNode>>();
+                    object jsonItem = jsonResult.JSONObject;
+                    TreeNode parentNode = rootNode;
+                    
+                    while (true)
+                    {
+                        AddNode(jsonItem, parentNode, queue);
+                        if (queue.Count == 0)
+                        {
+                            break;
+                        }
+
+                        KeyValuePair<object, TreeNode> kv = queue.Dequeue();
+                        jsonItem = kv.Key;
+                        parentNode = kv.Value;
+
+                    }
+
+                    rootNode.ExpandAll();
+
                     tvJson.BeginUpdate();
                     try
-                    {
-                        // Mostly tvJson was clear before
+                    {   
                         if (tvJson.Nodes.Count > 0)
                         {
                             tvJson.Nodes.Clear();
                         }
-
-                        TreeNode rootNode = tvJson.Nodes.Add("JSON");
-
-                        Queue<KeyValuePair<object, TreeNode>> queue = new Queue<KeyValuePair<object, TreeNode>>();
-                        object jsonItem = jsonResult.JSONObject;
-                        TreeNode parentNode = rootNode;
-                        while (true)
-                        {
-                            AddNode(jsonItem, parentNode, queue);
-                            if (queue.Count == 0)
-                            {
-                                break;
-                            }
-
-                            KeyValuePair<object, TreeNode> kv = queue.Dequeue();
-                            jsonItem = kv.Key;
-                            parentNode = kv.Value;
-                            
-                        }
                         
-                        tvJson.ExpandAll();
+                        tvJson.Nodes.Add(rootNode);
 
-                        rootNode.EnsureVisible();
+                        // tvJson.ExpandAll();
+                        // rootNode.EnsureVisible();
                     }
                     finally
                     {
                         tvJson.EndUpdate();
 #if DEBUG || OUTPUT_PERF_LOG
-                        FiddlerApp.LogString(inspectorContext.GetName() + " EndUpdate");
+                        FiddlerApp.LogString(inspectorContext.GetName() + " EndUpdate: " + tvJson.GetNodeCount(true).ToString());
 #endif
                     }
 
@@ -162,61 +165,78 @@ namespace Google.Protobuf.FiddlerInspector
             }
         }
 
-        private void AddNode(object token, TreeNode inTreeNode, Queue<KeyValuePair<object, TreeNode>> queue)
+        private void AddNode(object token, TreeNode node, Queue<KeyValuePair<object, TreeNode>> queue)
         {
             if (token == null)
                 return;
 
             if (token is Hashtable)
             {
-                TreeNode parentNode = inTreeNode;
-
                 Hashtable hashTable = token as Hashtable;
-                foreach (DictionaryEntry kv in hashTable)
+                if (hashTable.Count > 0)
                 {
-                    TreeNode childNode = parentNode.Nodes.Add(kv.Key.ToString());
-                    childNode.Tag = kv;
-                    queue.Enqueue(new KeyValuePair<object, TreeNode>(kv.Value, childNode));
-                    // AddNode(kv.Value, childNode);
+                    List<TreeNode> childNodes = new List<TreeNode>(hashTable.Count);
+                    
+                    foreach (DictionaryEntry kv in hashTable)
+                    {
+                        TreeNode childNode = new TreeNode(kv.Key.ToString());
+                        childNode.Tag = kv;
+                        childNodes.Add(childNode);
+                        
+                        queue.Enqueue(new KeyValuePair<object, TreeNode>(kv.Value, childNode));
+                        // AddNode(kv.Value, childNode, queue);
+                    }
+                    if (childNodes.Count > 0)
+                    {
+                        node.Nodes.AddRange(childNodes.ToArray());
+                    }
                 }
+                
             }
             else if (token is ArrayList)
             {
                 ArrayList arrayList = token as ArrayList;
-                for (int idx = 0; idx < arrayList.Count; idx++)
+                if (arrayList.Count > 0)
                 {
-                    TreeNode middleNode = AddMiddleNodeForArrayItem(inTreeNode, arrayList[idx]);
-                    queue.Enqueue(new KeyValuePair<object, TreeNode>(arrayList[idx], middleNode));
-                    // AddNode(arrayList[idx], middleNode);
+                    List<TreeNode> childNodes = new List<TreeNode>(arrayList.Count);
+
+                    for (int idx = 0; idx < arrayList.Count; idx++)
+                    {
+                        TreeNode middleNode = node;
+
+                        if (arrayList[idx] is Hashtable)
+                        {
+                            middleNode = new TreeNode("{}");
+                            childNodes.Add(middleNode);
+                        }
+                        else if (arrayList[idx] is ArrayList)
+                        {
+                            middleNode = new TreeNode("[]");
+                            childNodes.Add(middleNode);
+                        }
+
+                        // TreeNode middleNode = AddMiddleNodeForArrayItem(inTreeNode, arrayList[idx]);
+                        queue.Enqueue(new KeyValuePair<object, TreeNode>(arrayList[idx], middleNode));
+                        // AddNode(arrayList[idx], middleNode, queue);
+                    }
+
+                    if (childNodes.Count > 0)
+                    {
+                        node.Nodes.AddRange(childNodes.ToArray());
+                    }
                 }
             }
             else
             {
-                string text = inTreeNode.Text;
+                string text = node.Text;
                 if (text.Length > 0)
                 {
                     text += "=";
                 }
                 text += token.ToString();
-                inTreeNode.Text = text;
-                inTreeNode.Tag = token;
+                node.Text = text;
+                node.Tag = token;
             }
-        }
-
-        private TreeNode AddMiddleNodeForArrayItem(TreeNode inTreeNode, object arrayItem)
-        {
-            TreeNode middleNode = inTreeNode;
-
-            if (arrayItem is Hashtable)
-            {
-                middleNode = inTreeNode.Nodes.Add("{}");
-            }
-            else if (arrayItem is ArrayList)
-            {
-                middleNode = inTreeNode.Nodes.Add("[]");
-            }
-
-            return middleNode;
         }
 
         private void cmbMsgType_SelectedIndexChanged(object sender, EventArgs e)
