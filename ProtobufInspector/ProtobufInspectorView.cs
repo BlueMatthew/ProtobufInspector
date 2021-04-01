@@ -66,6 +66,7 @@ namespace Google.Protobuf.FiddlerInspector
                 return;
             }
 
+            ClearView(false);
             string messageTypeName = "";
             string descriptorSetUrl = "";
             if (null != headers && FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(headers, out messageTypeName, out descriptorSetUrl))
@@ -78,13 +79,6 @@ namespace Google.Protobuf.FiddlerInspector
                 this.cmbMessageType.Enabled = true;
             }
             
-            /*
-            if (!FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(headers, out messageTypeName, out descriptorSetUrl))
-            {
-                messageTypeName = this.cmbMessageType.Text;
-            }
-            */
-
             string protoPath = this.txtDirectory.Text;
             bool printEnumAsInteger = this.chkboxEnumValue.Checked;
             bool printPrimitiveFields = this.chkboxPrintPrimitiveFields.Checked;
@@ -104,11 +98,10 @@ namespace Google.Protobuf.FiddlerInspector
                     Fiddler.WebFormats.JSON.JSONParseResult jsonResult = null;
                     if (!(jsonObject is Fiddler.WebFormats.JSON.JSONParseResult))
                     {
-                        ClearView();
+                        tvJson.Nodes.Clear();
                         return;
                     }
-
-                    ClearView(false);
+                    
                     jsonResult = jsonObject as Fiddler.WebFormats.JSON.JSONParseResult;
                     tvJson.Tag = jsonString;
 #if DEBUG || OUTPUT_PERF_LOG
@@ -131,7 +124,6 @@ namespace Google.Protobuf.FiddlerInspector
                         KeyValuePair<object, TreeNode> kv = queue.Dequeue();
                         jsonItem = kv.Key;
                         parentNode = kv.Value;
-
                     }
 
                     rootNode.ExpandAll();
