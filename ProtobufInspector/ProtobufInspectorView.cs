@@ -27,21 +27,30 @@ namespace Google.Protobuf.FiddlerInspector
             this.inspectorContext = inspectorContext;
             InitializeComponent();
 
+#if DEBUG || OUTPUT_PERF_LOG
+            FiddlerApp.LogString("New " + inspectorContext.GetName() + " View");
+#endif
             this.txtDirectory.Text = FiddlerApp.GetProtoPath(inspectorContext.GetName());
 
             UpdateMessageTypes(FiddlerApp.GetRecentMessageTypes(inspectorContext.GetName()));
         }
-        
-        public void UpdateData()
-        {
-#if DEBUG
-            FiddlerApplication.Log.LogString("UpdateData");
+
+#if DEBUG || OUTPUT_PERF_LOG
+        public void UpdateData(string reason)
+#else
+        protected void UpdateData()
 #endif
-            
+        {
+#if DEBUG || OUTPUT_PERF_LOG
+            FiddlerApplication.Log.LogString(inspectorContext.GetName() + " UpdateData: " + reason);
+#else
+            FiddlerApp.LogString(inspectorContext.GetName() + " UpdateData");
+#endif
+
             if (inspectorContext.IsInvalidSession())
             {
-#if DEBUG
-                FiddlerApplication.Log.LogString("UpdateData exits for invalidated session");
+#if DEBUG || OUTPUT_PERF_LOG
+                FiddlerApp.LogString("UpdateData exits for invalidated session");
 #endif
                 ClearView();
                 return;
@@ -50,14 +59,13 @@ namespace Google.Protobuf.FiddlerInspector
             HTTPHeaders headers = inspectorContext.Headers;
             if (!FiddlerApp.IsProtobufPacket(headers))
             {
-#if DEBUG
-                FiddlerApplication.Log.LogString("UpdateData exits for non-protobuf session");
+#if DEBUG || OUTPUT_PERF_LOG
+                FiddlerApp.LogString("UpdateData exits for non-protobuf session");
 #endif
                 ClearView();
                 return;
             }
 
-            ClearView(false);
             string messageTypeName = "";
             string descriptorSetUrl = "";
             if (null != headers && FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(headers, out messageTypeName, out descriptorSetUrl))
@@ -96,10 +104,16 @@ namespace Google.Protobuf.FiddlerInspector
                     Fiddler.WebFormats.JSON.JSONParseResult jsonResult = null;
                     if (!(jsonObject is Fiddler.WebFormats.JSON.JSONParseResult))
                     {
+                        ClearView();
                         return;
                     }
+
+                    ClearView(false);
                     jsonResult = jsonObject as Fiddler.WebFormats.JSON.JSONParseResult;
                     tvJson.Tag = jsonString;
+#if DEBUG || OUTPUT_PERF_LOG
+                    FiddlerApplication.Log.LogString(inspectorContext.GetName() + " beginUpdate");
+#endif
                     tvJson.BeginUpdate();
                     try
                     {
@@ -110,49 +124,45 @@ namespace Google.Protobuf.FiddlerInspector
                         }
 
                         TreeNode rootNode = tvJson.Nodes.Add("JSON");
-                        AddNode(jsonResult.JSONObject, rootNode);
+
+                        Queue<KeyValuePair<object, TreeNode>> queue = new Queue<KeyValuePair<object, TreeNode>>();
+                        object jsonItem = jsonResult.JSONObject;
+                        TreeNode parentNode = rootNode;
+                        while (true)
+                        {
+                            AddNode(jsonItem, parentNode, queue);
+                            if (queue.Count == 0)
+                            {
+                                break;
+                            }
+
+                            KeyValuePair<object, TreeNode> kv = queue.Dequeue();
+                            jsonItem = kv.Key;
+                            parentNode = kv.Value;
+                            
+                        }
+                        
                         tvJson.ExpandAll();
+
                         rootNode.EnsureVisible();
                     }
                     finally
                     {
                         tvJson.EndUpdate();
+#if DEBUG || OUTPUT_PERF_LOG
+                        FiddlerApp.LogString(inspectorContext.GetName() + " EndUpdate");
+#endif
                     }
 
                 }
             }
             catch (Exception ex)
             {
-                FiddlerApplication.Log.LogString(ex.Message);
-                System.Diagnostics.Debug.Write(ex.Message);
+                FiddlerApp.LogString(ex.Message);
             }
         }
 
-        /*
-        public void UpdateData(Session session)
-        {
-            this.session = session;
-
-            ClearView();
-
-            string messageTypeName = "";
-            string descriptorSetUrl = "";
-
-            if (null != session && FiddlerApp.ParseMessageTypeNameAndDescriptorSetUrl(session, out messageTypeName, out descriptorSetUrl))
-            {
-                this.cmbMessageType.Text = messageTypeName == null ? "" : messageTypeName;
-                this.cmbMessageType.Enabled = (messageTypeName == null || messageTypeName.Length == 0);
-            }
-            else
-            {
-                this.cmbMessageType.Enabled = true;
-            }
-
-            UpdateData();
-        }
-        */
-        
-        private void AddNode(object token, TreeNode inTreeNode)
+        private void AddNode(object token, TreeNode inTreeNode, Queue<KeyValuePair<object, TreeNode>> queue)
         {
             if (token == null)
                 return;
@@ -166,7 +176,8 @@ namespace Google.Protobuf.FiddlerInspector
                 {
                     TreeNode childNode = parentNode.Nodes.Add(kv.Key.ToString());
                     childNode.Tag = kv;
-                    AddNode(kv.Value, childNode);
+                    queue.Enqueue(new KeyValuePair<object, TreeNode>(kv.Value, childNode));
+                    // AddNode(kv.Value, childNode);
                 }
             }
             else if (token is ArrayList)
@@ -175,7 +186,8 @@ namespace Google.Protobuf.FiddlerInspector
                 for (int idx = 0; idx < arrayList.Count; idx++)
                 {
                     TreeNode middleNode = AddMiddleNodeForArrayItem(inTreeNode, arrayList[idx]);
-                    AddNode(arrayList[idx], middleNode);
+                    queue.Enqueue(new KeyValuePair<object, TreeNode>(arrayList[idx], middleNode));
+                    // AddNode(arrayList[idx], middleNode);
                 }
             }
             else
@@ -230,7 +242,11 @@ namespace Google.Protobuf.FiddlerInspector
                     FiddlerApp.SetProtoPath(dialog.SelectedPath, inspectorContext.GetName());
                     this.txtDirectory.Text = dialog.SelectedPath;
 
+#if DEBUG || OUTPUT_PERF_LOG
+                    UpdateData("ProtoPath Changed");
+#else
                     UpdateData();
+#endif
                 }
             }
         }
@@ -247,7 +263,11 @@ namespace Google.Protobuf.FiddlerInspector
         {
             if (this.cmbMessageType.Text != null && this.cmbMessageType.Text.Length > 0)
             {
+#if DEBUG || OUTPUT_PERF_LOG
+                UpdateData("Reload Clicked");
+#else
                 UpdateData();
+#endif
             }
         }
 
@@ -255,7 +275,11 @@ namespace Google.Protobuf.FiddlerInspector
         {
             if (this.cmbMessageType.Text != null && this.cmbMessageType.Text.Length > 0)
             {
+#if DEBUG || OUTPUT_PERF_LOG
+                UpdateData("Options Changed");
+#else
                 UpdateData();
+#endif
             }
         }
 

@@ -13,6 +13,7 @@ namespace Google.Protobuf.FiddlerInspector
         public static void LogString(string log)
         {
             FiddlerApplication.Log.LogString(log);
+            System.Diagnostics.Debug.WriteLine("Fiddler\t" + log);
         }
 
         public static bool IsProtobufPacket(HTTPHeaders headers)

@@ -37,11 +37,11 @@ namespace Google.Protobuf.FiddlerInspector
             get { return inspectorContext.Headers as HTTPResponseHeaders; }
             set
             {
-#if DEBUG
-                FiddlerApplication.Log.LogString("Res Headers Changed");
+#if DEBUG || OUTPUT_PERF_LOG
+              
+                FiddlerApplication.Log.LogString((value == null) ? "Res Headers Changed with null" : "Res Headers Changed");
 #endif
                 inspectorContext.Headers = value;
-                inspectorView.UpdateData();
             }
         }
 
@@ -51,11 +51,15 @@ namespace Google.Protobuf.FiddlerInspector
             get { return inspectorContext.RawBody; }
             set
             {
-#if DEBUG
-                FiddlerApplication.Log.LogString("Res Body Changed");
+#if DEBUG || OUTPUT_PERF_LOG
+                FiddlerApplication.Log.LogString((value == null) ? "Res Body Changed with null" : "Res Body Changed");
 #endif
                 inspectorContext.RawBody = value;
+#if DEBUG || OUTPUT_PERF_LOG
+                inspectorView.UpdateData("Res Body Changed");
+#else
                 inspectorView.UpdateData();
+#endif
             }
         }
 
@@ -74,8 +78,8 @@ namespace Google.Protobuf.FiddlerInspector
         // IBaseInspector2.Clear
         public void Clear()
         {
-#if DEBUG
-            FiddlerApplication.Log.LogString("Res Clear");
+#if DEBUG || OUTPUT_PERF_LOG
+            FiddlerApp.LogString("Res Clear");
 #endif
             ClearInspector();
         }

@@ -74,12 +74,12 @@ namespace Google.Protobuf.FiddlerInspector
         public static string ConvertToJson(string protoPath, string[] protoFiles, string descriptorSetUrl, string messageTypeName, bool printEnumAsInteger, bool printPrimitiveFields, bool isReq, byte[] data)
         {
 #if DEBUG
-            FiddlerApplication.Log.LogString("Start Decoding");
+            FiddlerApp.LogString("Start Decoding");
 #endif
             if (null == messageTypeName)
             {
 #if DEBUG
-                FiddlerApplication.Log.LogString("Decoding:messageTypeName is null");
+                FiddlerApp.LogString("Decoding:messageTypeName is null");
 #endif
                 // return null;
             }
@@ -181,7 +181,7 @@ namespace Google.Protobuf.FiddlerInspector
                 }
                 catch (Exception ex)
                 {
-                    FiddlerApplication.Log.LogString("Decoding exception: " + ex.Message);
+                    FiddlerApp.LogString("Decoding exception: " + ex.Message);
                 }
             }
             else
@@ -189,7 +189,7 @@ namespace Google.Protobuf.FiddlerInspector
                 string errorStr = convertAndFreeStrPtr(outputStringPtr, outputStringLength);
                 if (errorStr != null && errorStr.Length > 0)
                 {
-                    FiddlerApplication.Log.LogString("Protobuf Decoding Failed:" + errorStr);
+                    FiddlerApp.LogString("Protobuf Decoding Failed:" + errorStr);
                 }
             }
 
@@ -228,7 +228,7 @@ namespace Google.Protobuf.FiddlerInspector
             catch (Exception ex)
             {
                 if (File.Exists(descriptorSetFileName)) File.Delete(descriptorSetFileName);
-                FiddlerApplication.Log.LogString("Exception on decoding: " + ex.Message);
+                FiddlerApp.LogString("Exception on decoding: " + ex.Message);
             }
             finally
             {

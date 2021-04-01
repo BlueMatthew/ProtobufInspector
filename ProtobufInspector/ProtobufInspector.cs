@@ -45,31 +45,31 @@ namespace Google.Protobuf.FiddlerInspector
         }
 
         // Inspector2
+        public override int ScoreForSession(Session oS)
+        {
+#if DEBUG || OUTPUT_PERF_LOG
+            FiddlerApp.LogString("ScoreForSession:" + inspectorContext.GetName() + " " + oS.url);
+#endif
+            int score = base.ScoreForSession(oS);
+
+            // inspectorContext.AssignSession(oS);
+
+            return FiddlerApp.IsProtobufPacket(inspectorContext.GetHeaders(oS)) ? 100 : 0;
+        }
+
+        // Inspector2
         public override void AssignSession(Session oS)
         {
             base.AssignSession(oS);
 
             if (inspectorContext.AssignSession(oS))
             {
-#if DEBUG
-                FiddlerApplication.Log.LogString("AssignSession:" + inspectorContext.GetName() + " " + oS.url);
+#if DEBUG || OUTPUT_PERF_LOG
+                FiddlerApp.LogString("AssignSession:" + inspectorContext.GetName() + " " + oS.url);
 #endif
-                inspectorView.UpdateData();
             }
         }
-
-        public override bool CommitAnyChanges(Session oS)
-        {
-            bool result = base.CommitAnyChanges(oS);
-
-#if DEBUG
-            FiddlerApplication.Log.LogString("CommitAnyChanges:" + inspectorContext.GetName() + " " + oS.url);
-#endif
-            // inspectorView.UpdateData();
-
-            return result;
-        }
-
+        
         // Inspector2
         public override int GetOrder()
         {
@@ -79,7 +79,11 @@ namespace Google.Protobuf.FiddlerInspector
         public void ClearInspector()
         {
             inspectorContext.Clear();
+#if DEBUG || OUTPUT_PERF_LOG
+            inspectorView.UpdateData("ClearInspector");
+#else
             inspectorView.UpdateData();
+#endif
         }
 
     }

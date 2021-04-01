@@ -28,11 +28,10 @@ namespace Google.Protobuf.FiddlerInspector
             {
                 if (inspectorContext.Headers != value)
                 {
-#if DEBUG
-                    FiddlerApplication.Log.LogString("Req Headers Changed");
+#if DEBUG || OUTPUT_PERF_LOG
+                    FiddlerApp.LogString("Req Headers Changed");
 #endif
                     inspectorContext.Headers = value;
-                    inspectorView.UpdateData();
                 }
             }
         }
@@ -45,11 +44,16 @@ namespace Google.Protobuf.FiddlerInspector
             {
                 if (inspectorContext.RawBody != value)
                 {
-#if DEBUG
-                    FiddlerApplication.Log.LogString("Req Body Changed");
+#if DEBUG || OUTPUT_PERF_LOG
+                    FiddlerApp.LogString("Req Body Changed");
 #endif
                     inspectorContext.RawBody = value;
+#if DEBUG || OUTPUT_PERF_LOG
+                    inspectorView.UpdateData("Req Body Changed");
+#else
                     inspectorView.UpdateData();
+#endif
+
                 }
             }
         }
@@ -70,8 +74,8 @@ namespace Google.Protobuf.FiddlerInspector
         // IBaseInspector2.Clear
         public void Clear()
         {
-#if DEBUG
-            FiddlerApplication.Log.LogString("Req Clear");
+#if DEBUG || OUTPUT_PERF_LOG
+            FiddlerApp.LogString("Req Clear");
 #endif
             ClearInspector();
         }

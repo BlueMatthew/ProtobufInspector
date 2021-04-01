@@ -16,7 +16,7 @@ namespace Google.Protobuf.FiddlerInspector
             Clear();
         }
 
-        public bool AssignSession(Session session)
+        public virtual bool AssignSession(Session session)
         {
             bool changed = (this.session != session);
             this.session = session;
@@ -32,11 +32,11 @@ namespace Google.Protobuf.FiddlerInspector
 
         public bool IsInvalidSession()
         {
-            return null == session || null == headers || null == rawBody;
+            return /*null == session || */null == headers || null == rawBody;
         }
-        public abstract byte[] GetBody();
-        public abstract HTTPHeaders GetHeaders();
+       
         public abstract string GetName();
+        public abstract HTTPHeaders GetHeaders(Session session);
 
         public HTTPHeaders Headers
         {
@@ -58,10 +58,49 @@ namespace Google.Protobuf.FiddlerInspector
     
     public class RequestInspectorContext : InspectorContext
     {
-        public RequestInspectorContext()
+        public RequestInspectorContext() : base()
         {
         }
-        
+
+        public override HTTPHeaders GetHeaders(Session session)
+        {
+            return session.RequestHeaders;
+        }
+
+        public override bool AssignSession(Session session)
+        {
+            bool changed = false;
+            if (session.state >= SessionStates.ReadingResponse)
+            {
+                if (session.RequestHeaders != this.headers)
+                {
+                    this.headers = session.RequestHeaders;
+                    changed = true;
+                }
+                if (session.RequestBody != this.rawBody)
+                {
+                    this.rawBody = session.RequestBody;
+                    changed = true;
+                }
+            }
+            else
+            {
+                if (null == this.headers)
+                {
+                    this.headers = session.RequestHeaders;
+                    changed = true;
+                }
+                if (null == this.rawBody)
+                {
+                    this.rawBody = session.RequestBody;
+                    changed = true;
+                }
+            }
+            
+            return base.AssignSession(session) && changed;
+        }
+
+        /*
         public override byte[] GetBody()
         {
             return null == session ? null : session.RequestBody;
@@ -70,6 +109,7 @@ namespace Google.Protobuf.FiddlerInspector
         {
             return null == session ? null : session.RequestHeaders;
         }
+        */
         public override string GetName()
         {
             return "Request";
@@ -79,18 +119,31 @@ namespace Google.Protobuf.FiddlerInspector
 
     public class ResponseInspectorContext : InspectorContext
     {
-        public ResponseInspectorContext()
+        public ResponseInspectorContext() : base()
         {
         }
 
-        public override byte[] GetBody()
+        public override HTTPHeaders GetHeaders(Session session)
         {
-            return null == session ? null : session.ResponseBody;
+            return session.ResponseHeaders;
         }
-        public override HTTPHeaders GetHeaders()
+
+        public override bool AssignSession(Session session)
         {
-            return null == session ? null : session.ResponseHeaders;
+            if (!session.bHasResponse)
+            {
+                this.rawBody = null;
+                this.headers = null;
+            }
+            else
+            {
+                this.rawBody = session.ResponseBody;
+                this.headers = session.ResponseHeaders;
+            }
+            
+            return base.AssignSession(session);
         }
+        
         public override string GetName()
         {
             return "Response";
