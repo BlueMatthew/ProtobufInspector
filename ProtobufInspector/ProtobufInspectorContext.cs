@@ -99,17 +99,7 @@ namespace Google.Protobuf.FiddlerInspector
             
             return base.AssignSession(session) && changed;
         }
-
-        /*
-        public override byte[] GetBody()
-        {
-            return null == session ? null : session.RequestBody;
-        }
-        public override HTTPHeaders GetHeaders()
-        {
-            return null == session ? null : session.RequestHeaders;
-        }
-        */
+        
         public override string GetName()
         {
             return "Request";
