@@ -209,6 +209,7 @@ namespace Google.Protobuf.FiddlerInspector
             this.tvJson.Margin = new System.Windows.Forms.Padding(4);
             this.tvJson.Name = "tvJson";
             this.tvJson.ShowNodeToolTips = true;
+            this.tvJson.FullRowSelect = true;
             this.tvJson.Size = new System.Drawing.Size(995, 625);
             this.tvJson.TabIndex = 0;
             // 
