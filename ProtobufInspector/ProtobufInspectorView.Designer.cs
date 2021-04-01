@@ -188,7 +188,6 @@ namespace Google.Protobuf.FiddlerInspector
             this.txtDirectory.Location = new System.Drawing.Point(116, 7);
             this.txtDirectory.Name = "txtDirectory";
             this.txtDirectory.ReadOnly = true;
-            this.txtDirectory.BorderStyle = BorderStyle.None;
             this.txtDirectory.Size = new System.Drawing.Size(783, 21);
             this.txtDirectory.TabIndex = 1;
             // 
