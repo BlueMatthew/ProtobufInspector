@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Xml;
 using System.Net;
+using System.Net.Cache;
 using Fiddler;
 
 namespace Google.Protobuf.FiddlerInspector
@@ -54,6 +55,13 @@ namespace Google.Protobuf.FiddlerInspector
         private static extern int FreeOutputString(
             IntPtr outputString,
             [MarshalAs(UnmanagedType.U4)] UInt32 lengthOfOutputString
+        );
+
+        [DllImport("Protobuf2Json.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        private static extern int CacheDescriptorSet(
+            [MarshalAs(UnmanagedType.LPStr)] String udescriptorSetUrlrl,
+            [MarshalAs(UnmanagedType.LPStr)] String descriptorSetFilePath,
+            [MarshalAs(UnmanagedType.LPStr)] UInt32 expireSeconds
         );
 
         public static string convertAndFreeStrPtr(IntPtr outputStringPtr, UInt32 outputStringLength)
@@ -205,8 +213,11 @@ namespace Google.Protobuf.FiddlerInspector
             FileStream fs = null;
             try
             {
+                HttpRequestCachePolicy requestCachePolicy = new HttpRequestCachePolicy(HttpCacheAgeControl.MaxAge, TimeSpan.FromSeconds(600));
+
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(descriptorSetUrl);
                 request.Headers.Add("Accept-Encoding", "gzip,deflate");
+                request.CachePolicy = requestCachePolicy;
                 request.AllowAutoRedirect = true;
                 request.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
                 request.Credentials = CredentialCache.DefaultCredentials;
@@ -221,7 +232,15 @@ namespace Google.Protobuf.FiddlerInspector
 
                     fs = File.OpenWrite(descriptorSetFileName);
                     stm.CopyTo(fs);
-                    
+
+                    bool isFromCache = response.IsFromCache;
+
+                    if (!response.IsFromCache)
+                    {
+                        // Save to cache
+                        CacheDescriptorSet(descriptorSetUrl, descriptorSetFileName, 600);
+
+                    }
                     ret = true;
                 }
             }
@@ -250,6 +269,8 @@ namespace Google.Protobuf.FiddlerInspector
 
             return ret;
         }
+
         
+
     }
 }
