@@ -36,3 +36,7 @@ extern "C" PROTOBUF2JSON_API BOOL ConvertRawMessageToJson(const unsigned char* m
 extern "C" PROTOBUF2JSON_API BOOL ConvertMessageWithProtoFilesToJson(const PB2JSON_PROTOS_SRC_INFO *src, char **outputString, DWORD *lengthOfOutputString);
 extern "C" PROTOBUF2JSON_API BOOL ConvertMessageWithDescriptorSetToJson(const PB2JSON_DESCRIPTOR_SET_SRC_INFO *src, char **outputString, DWORD *lengthOfOutputString);
 extern "C" PROTOBUF2JSON_API BOOL FreeOutputString(char *outputString, DWORD lengthOfOutputString);
+
+extern "C" PROTOBUF2JSON_API BOOL CacheDescriptorSet(const char *descriptorSetUrl, const char* descriptorSetFilePath, DWORD expireSeconds);
+
+extern "C" PROTOBUF2JSON_API BOOL CacheHttpResponse(const char *url, const char* responseFilePath, unsigned char *headers, DWORD lengthOfHeaders, DWORD expireSeconds);

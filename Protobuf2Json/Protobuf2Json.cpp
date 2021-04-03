@@ -7,6 +7,7 @@
 #include <vector>
 #include <iostream>
 #include <streambuf>
+#include <wininet.h>
 
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/descriptor.pb.h>
@@ -344,4 +345,31 @@ BOOL FreeOutputString(char *outputString, DWORD lengthOfOutputString)
 	}
 
 	return TRUE;
+}
+
+extern "C" PROTOBUF2JSON_API BOOL CacheDescriptorSet(const char *descriptorSetUrl, const char* descriptorSetFilePath, DWORD expireSeconds)
+{
+	return CacheHttpResponse(descriptorSetUrl, descriptorSetFilePath, NULL, 0, expireSeconds);
+}
+
+BOOL CacheHttpResponse(const char *url, const char* responseFilePath, unsigned char *headers, DWORD lengthOfHeaders, DWORD expireSeconds)
+{
+	SYSTEMTIME tmSysTime;
+	GetLocalTime(&tmSysTime);
+
+	FILETIME tmExpire;
+	FILETIME tmLastModified;
+	SystemTimeToFileTime(&tmSysTime, &tmExpire);
+	SystemTimeToFileTime(&tmSysTime, &tmLastModified);
+
+	ULARGE_INTEGER ui;
+	ui.LowPart = tmExpire.dwLowDateTime;
+	ui.HighPart = tmExpire.dwHighDateTime;
+
+	ui.QuadPart += 10000000 * expireSeconds;
+
+	tmExpire.dwLowDateTime = ui.LowPart;
+	tmExpire.dwHighDateTime = ui.HighPart;
+	
+	return CommitUrlCacheEntryA(url, responseFilePath, tmExpire, tmLastModified, NORMAL_CACHE_ENTRY, headers, lengthOfHeaders, NULL, NULL);
 }
