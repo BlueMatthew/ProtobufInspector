@@ -35,7 +35,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Fiddler">
-      <HintPath>C:\Users\User\AppData\Local\Programs\Fiddler\Fiddler.exe</HintPath>
+      <HintPath>C:\Program Files\Fiddler\Fiddler.exe</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -74,7 +74,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y $(ProjectDir)\$(OutDir)$(TargetName)$(TargetExt) "C:\Users\User\AppData\Local\Programs\Fiddler\Inspectors\"
-copy /Y $(ProjectDir)\$(OutDir)$(TargetName).pdb "C:\Users\User\AppData\Local\Programs\Fiddler\Inspectors\"</PostBuildEvent>
+    <PostBuildEvent>copy /Y $(ProjectDir)\$(OutDir)$(TargetName)$(TargetExt) "%25USERPROFILE%25\Documents\Fiddler2\Inspectors\"
+copy /Y $(ProjectDir)\$(OutDir)$(TargetName).pdb "%25USERPROFILE%25\Documents\Fiddler2\Inspectors\"</PostBuildEvent>
   </PropertyGroup>
 </Project>
