@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using Fiddler;
+using System.IO;
+using System.Runtime.Serialization.Json;
+using System.Runtime.Serialization;
 
 namespace Google.Protobuf.FiddlerInspector
 {
@@ -93,16 +96,13 @@ namespace Google.Protobuf.FiddlerInspector
                     string[] protoFiles = FiddlerApp.LoadProtos(protoPath);
 
                     jsonString = Protobuf2Json.ConvertToJson(protoPath, protoFiles, descriptorSetUrl, messageTypeName, printEnumAsInteger, printPrimitiveFields, false, body);
-
-                    object jsonObject = Fiddler.WebFormats.JSON.JsonDecode(jsonString);
-                    Fiddler.WebFormats.JSON.JSONParseResult jsonResult = null;
-                    if (!(jsonObject is Fiddler.WebFormats.JSON.JSONParseResult))
+                    object jsonObject = JsonParser.ParseJson(jsonString);
+                    if (jsonObject == null)
                     {
                         tvJson.Nodes.Clear();
                         return;
                     }
                     
-                    jsonResult = jsonObject as Fiddler.WebFormats.JSON.JSONParseResult;
                     tvJson.Tag = jsonString;
 #if DEBUG || OUTPUT_PERF_LOG
                     FiddlerApplication.Log.LogString(inspectorContext.GetName() + " beginUpdate");
@@ -110,7 +110,7 @@ namespace Google.Protobuf.FiddlerInspector
                     TreeNode rootNode = new TreeNode("Protobuf");
 
                     Queue<KeyValuePair<object, TreeNode>> queue = new Queue<KeyValuePair<object, TreeNode>>();
-                    object jsonItem = jsonResult.JSONObject;
+                    object jsonItem = jsonObject;
                     TreeNode parentNode = rootNode;
                     
                     while (true)
@@ -358,6 +358,129 @@ namespace Google.Protobuf.FiddlerInspector
             this.cmbMessageType.SelectedIndexChanged += cmbMsgType_SelectedIndexChanged;
         }
 
-        
+
+        public static class JsonParser
+        {
+            /// <summary>
+            /// Parse JSON string efficiently, returning ArrayList for arrays and Hashtable for objects
+            /// </summary>
+            /// <param name="jsonString">JSON string to parse</param>
+            /// <returns>Parsing result, could be Hashtable or ArrayList type</returns>
+            public static object ParseJson(string jsonString)
+            {
+                if (string.IsNullOrEmpty(jsonString))
+                    return null;
+
+                jsonString = jsonString.Trim();
+
+                // Fast path check for array or object
+                char firstChar = jsonString[0];
+                char lastChar = jsonString[jsonString.Length - 1];
+
+                try
+                {
+                    // Faster character check than StartsWith/EndsWith
+                    if (firstChar == '[' && lastChar == ']')
+                    {
+                        return DeserializeJsonArray(jsonString);
+                    }
+                    else if (firstChar == '{' && lastChar == '}')
+                    {
+                        return DeserializeJsonToHashtable(jsonString);
+                    }
+                    else
+                    {
+                        // Simple value handling could be added here
+                        return null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Simplified error handling
+                    return null;
+                }
+            }
+
+            /// <summary>
+            /// Parse JSON string into a Hashtable with optimized memory usage
+            /// </summary>
+            private static Hashtable DeserializeJsonToHashtable(string jsonString)
+            {
+                byte[] jsonBytes = Encoding.UTF8.GetBytes(jsonString);
+                using (MemoryStream ms = new MemoryStream(jsonBytes))
+                {
+                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(Hashtable));
+                    return (Hashtable)serializer.ReadObject(ms);
+                }
+            }
+
+            /// <summary>
+            /// Optimized method to parse JSON array string into ArrayList
+            /// </summary>
+            private static ArrayList DeserializeJsonArray(string jsonString)
+            {
+                byte[] jsonBytes = Encoding.UTF8.GetBytes(jsonString);
+                using (MemoryStream ms = new MemoryStream(jsonBytes))
+                {
+                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(object[]));
+                    object[] rawArray = (object[])serializer.ReadObject(ms);
+
+                    // Preallocate ArrayList with exact capacity
+                    ArrayList result = new ArrayList(rawArray.Length);
+
+                    // Direct conversion in single loop
+                    foreach (object item in rawArray)
+                    {
+                        result.Add(ConvertToHashtableIfNeeded(item));
+                    }
+
+                    return result;
+                }
+            }
+
+            /// <summary>
+            /// Optimized recursive conversion of JSON structures
+            /// </summary>
+            private static object ConvertToHashtableIfNeeded(object value)
+            {
+                // Most common case first for performance
+                if (value is Dictionary<string, object> dict)
+                {
+                    // Preallocate with known size
+                    Hashtable ht = new Hashtable(dict.Count);
+                    foreach (var kvp in dict)
+                    {
+                        ht[kvp.Key] = ConvertToHashtableIfNeeded(kvp.Value);
+                    }
+                    return ht;
+                }
+
+                // Handle arrays - convert to ArrayList
+                if (value is object[] objArray)
+                {
+                    ArrayList list = new ArrayList(objArray.Length);
+                    foreach (object item in objArray)
+                    {
+                        list.Add(ConvertToHashtableIfNeeded(item));
+                    }
+                    return list;
+                }
+
+                // Handle generic lists
+                if (value is System.Collections.Generic.List<object> genericList)
+                {
+                    ArrayList list = new ArrayList(genericList.Count);
+                    foreach (object item in genericList)
+                    {
+                        list.Add(ConvertToHashtableIfNeeded(item));
+                    }
+                    return list;
+                }
+
+                // Return primitives and other types as-is
+                return value;
+            }
+        }
+
     }
 }
