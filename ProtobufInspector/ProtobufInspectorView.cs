@@ -13,6 +13,7 @@ using Fiddler;
 using System.IO;
 using System.Runtime.Serialization.Json;
 using System.Runtime.Serialization;
+using System.Web.Script.Serialization;
 
 namespace Google.Protobuf.FiddlerInspector
 {
@@ -109,24 +110,7 @@ namespace Google.Protobuf.FiddlerInspector
 #endif
                     TreeNode rootNode = new TreeNode("Protobuf");
 
-                    Queue<KeyValuePair<object, TreeNode>> queue = new Queue<KeyValuePair<object, TreeNode>>();
-                    object jsonItem = jsonObject;
-                    TreeNode parentNode = rootNode;
-                    
-                    while (true)
-                    {
-                        AddNode(jsonItem, parentNode, queue);
-                        if (queue.Count == 0)
-                        {
-                            break;
-                        }
-
-                        KeyValuePair<object, TreeNode> kv = queue.Dequeue();
-                        jsonItem = kv.Key;
-                        parentNode = kv.Value;
-                    }
-
-                    rootNode.ExpandAll();
+                    AddNode(jsonObject, rootNode);
 
                     tvJson.BeginUpdate();
                     try
@@ -135,11 +119,9 @@ namespace Google.Protobuf.FiddlerInspector
                         {
                             tvJson.Nodes.Clear();
                         }
-                        
-                        tvJson.Nodes.Add(rootNode);
 
-                        // tvJson.ExpandAll();
-                        // rootNode.EnsureVisible();
+                        tvJson.Nodes.Add(rootNode);
+                        rootNode.ExpandAll();
                     }
                     finally
                     {
@@ -157,77 +139,31 @@ namespace Google.Protobuf.FiddlerInspector
             }
         }
 
-        private void AddNode(object token, TreeNode node, Queue<KeyValuePair<object, TreeNode>> queue)
+        private void AddNode(object token, TreeNode node)
         {
-            if (token == null)
+            IDictionary dictionary = token as IDictionary;
+            if (dictionary != null)
+            {
+                foreach (DictionaryEntry item in dictionary)
+                {
+                    AddNode(item.Value, node.Nodes.Add(item.Key.ToString()));
+                }
                 return;
-
-            if (token is Hashtable)
-            {
-                Hashtable hashTable = token as Hashtable;
-                if (hashTable.Count > 0)
-                {
-                    List<TreeNode> childNodes = new List<TreeNode>(hashTable.Count);
-                    
-                    foreach (DictionaryEntry kv in hashTable)
-                    {
-                        TreeNode childNode = new TreeNode(kv.Key.ToString());
-                        childNode.Tag = kv;
-                        childNodes.Add(childNode);
-                        
-                        queue.Enqueue(new KeyValuePair<object, TreeNode>(kv.Value, childNode));
-                        // AddNode(kv.Value, childNode, queue);
-                    }
-                    if (childNodes.Count > 0)
-                    {
-                        node.Nodes.AddRange(childNodes.ToArray());
-                    }
-                }
-                
             }
-            else if (token is ArrayList)
+
+            IList list = token as IList;
+            if (list != null)
             {
-                ArrayList arrayList = token as ArrayList;
-                if (arrayList.Count > 0)
+                foreach (object item in list)
                 {
-                    List<TreeNode> childNodes = new List<TreeNode>(arrayList.Count);
-
-                    for (int idx = 0; idx < arrayList.Count; idx++)
-                    {
-                        TreeNode middleNode = node;
-
-                        if (arrayList[idx] is Hashtable)
-                        {
-                            middleNode = new TreeNode("{}");
-                            childNodes.Add(middleNode);
-                        }
-                        else if (arrayList[idx] is ArrayList)
-                        {
-                            middleNode = new TreeNode("[]");
-                            childNodes.Add(middleNode);
-                        }
-
-                        // TreeNode middleNode = AddMiddleNodeForArrayItem(inTreeNode, arrayList[idx]);
-                        queue.Enqueue(new KeyValuePair<object, TreeNode>(arrayList[idx], middleNode));
-                        // AddNode(arrayList[idx], middleNode, queue);
-                    }
-
-                    if (childNodes.Count > 0)
-                    {
-                        node.Nodes.AddRange(childNodes.ToArray());
-                    }
+                    AddNode(item, item is IDictionary ? node.Nodes.Add("{}") : item is IList ? node.Nodes.Add("[]") : node);
                 }
+                return;
             }
-            else
+
+            if (token != null)
             {
-                string text = node.Text;
-                if (text.Length > 0)
-                {
-                    text += "=";
-                }
-                text += token.ToString();
-                node.Text = text;
-                node.Tag = token;
+                node.Text += "=" + token.ToString();
             }
         }
 
@@ -371,114 +307,14 @@ namespace Google.Protobuf.FiddlerInspector
                 if (string.IsNullOrEmpty(jsonString))
                     return null;
 
-                jsonString = jsonString.Trim();
-
-                // Fast path check for array or object
-                char firstChar = jsonString[0];
-                char lastChar = jsonString[jsonString.Length - 1];
-
                 try
                 {
-                    // Faster character check than StartsWith/EndsWith
-                    if (firstChar == '[' && lastChar == ']')
-                    {
-                        return DeserializeJsonArray(jsonString);
-                    }
-                    else if (firstChar == '{' && lastChar == '}')
-                    {
-                        return DeserializeJsonToHashtable(jsonString);
-                    }
-                    else
-                    {
-                        // Simple value handling could be added here
-                        return null;
-                    }
+                    return new JavaScriptSerializer().DeserializeObject(jsonString);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    // Simplified error handling
                     return null;
                 }
-            }
-
-            /// <summary>
-            /// Parse JSON string into a Hashtable with optimized memory usage
-            /// </summary>
-            private static Hashtable DeserializeJsonToHashtable(string jsonString)
-            {
-                byte[] jsonBytes = Encoding.UTF8.GetBytes(jsonString);
-                using (MemoryStream ms = new MemoryStream(jsonBytes))
-                {
-                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(Hashtable));
-                    return (Hashtable)serializer.ReadObject(ms);
-                }
-            }
-
-            /// <summary>
-            /// Optimized method to parse JSON array string into ArrayList
-            /// </summary>
-            private static ArrayList DeserializeJsonArray(string jsonString)
-            {
-                byte[] jsonBytes = Encoding.UTF8.GetBytes(jsonString);
-                using (MemoryStream ms = new MemoryStream(jsonBytes))
-                {
-                    DataContractJsonSerializer serializer = new DataContractJsonSerializer(typeof(object[]));
-                    object[] rawArray = (object[])serializer.ReadObject(ms);
-
-                    // Preallocate ArrayList with exact capacity
-                    ArrayList result = new ArrayList(rawArray.Length);
-
-                    // Direct conversion in single loop
-                    foreach (object item in rawArray)
-                    {
-                        result.Add(ConvertToHashtableIfNeeded(item));
-                    }
-
-                    return result;
-                }
-            }
-
-            /// <summary>
-            /// Optimized recursive conversion of JSON structures
-            /// </summary>
-            private static object ConvertToHashtableIfNeeded(object value)
-            {
-                // Most common case first for performance
-                if (value is Dictionary<string, object> dict)
-                {
-                    // Preallocate with known size
-                    Hashtable ht = new Hashtable(dict.Count);
-                    foreach (var kvp in dict)
-                    {
-                        ht[kvp.Key] = ConvertToHashtableIfNeeded(kvp.Value);
-                    }
-                    return ht;
-                }
-
-                // Handle arrays - convert to ArrayList
-                if (value is object[] objArray)
-                {
-                    ArrayList list = new ArrayList(objArray.Length);
-                    foreach (object item in objArray)
-                    {
-                        list.Add(ConvertToHashtableIfNeeded(item));
-                    }
-                    return list;
-                }
-
-                // Handle generic lists
-                if (value is System.Collections.Generic.List<object> genericList)
-                {
-                    ArrayList list = new ArrayList(genericList.Count);
-                    foreach (object item in genericList)
-                    {
-                        list.Add(ConvertToHashtableIfNeeded(item));
-                    }
-                    return list;
-                }
-
-                // Return primitives and other types as-is
-                return value;
             }
         }
 
