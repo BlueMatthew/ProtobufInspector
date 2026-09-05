@@ -141,6 +141,8 @@ namespace Google.Protobuf.FiddlerInspector
 
         private void AddNode(object token, TreeNode node)
         {
+            const int maxValueLength = 4096;
+
             IDictionary dictionary = token as IDictionary;
             if (dictionary != null)
             {
@@ -163,7 +165,24 @@ namespace Google.Protobuf.FiddlerInspector
 
             if (token != null)
             {
-                node.Text += "=" + token.ToString();
+                string value = token.ToString();
+                bool isBinary = token is string && value.Take(maxValueLength).Any(c => char.IsControl(c) && c != '\t' && c != '\r' && c != '\n');
+                node.Tag = token;
+                if (isBinary)
+                {
+                    node.Text += "=<binary data, " + value.Length + " bytes>";
+                    return;
+                }
+
+                bool truncated = value.Length > maxValueLength;
+                if (token is string)
+                {
+                    value = value.Substring(0, Math.Min(value.Length, maxValueLength));
+                    value = new JavaScriptSerializer().Serialize(value);
+                    value = value.Substring(1, value.Length - 2);
+                }
+
+                node.Text += "=" + value.Substring(0, Math.Min(value.Length, maxValueLength)) + (truncated || value.Length > maxValueLength ? "..." : "");
             }
         }
 
@@ -251,6 +270,20 @@ namespace Google.Protobuf.FiddlerInspector
         {
             if (tvJson.SelectedNode != null)
             {
+                object value = tvJson.SelectedNode.Tag;
+                if (value != null)
+                {
+                    string text = value.ToString();
+                    if (value is string)
+                    {
+                        text = new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Serialize(text);
+                        text = text.Substring(1, text.Length - 2);
+                    }
+
+                    Clipboard.SetText(text);
+                    return;
+                }
+
                 String val = tvJson.SelectedNode.Text;
                 int pos = val.IndexOf('=');
                 if (pos == -1)
@@ -309,7 +342,7 @@ namespace Google.Protobuf.FiddlerInspector
 
                 try
                 {
-                    return new JavaScriptSerializer().DeserializeObject(jsonString);
+                    return new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.DeserializeObject(jsonString);
                 }
                 catch (Exception)
                 {
