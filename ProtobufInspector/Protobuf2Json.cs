@@ -79,7 +79,7 @@ namespace Google.Protobuf.FiddlerInspector
             return outputString;
         }
 
-        public static string ConvertToJson(string protoPath, string[] protoFiles, string descriptorSetUrl, string messageTypeName, bool printEnumAsInteger, bool printPrimitiveFields, bool isReq, byte[] data)
+        public static string ConvertToJson(string protoPath, string[] protoFiles, string descriptorSetUrl, string messageTypeName, bool printEnumAsInteger, bool printPrimitiveFields, bool isReq, byte[] data, out bool isRaw)
         {
 #if DEBUG
             FiddlerApp.LogString("Start Decoding");
@@ -131,6 +131,7 @@ namespace Google.Protobuf.FiddlerInspector
                 }
             }
             
+            isRaw = string.IsNullOrEmpty(messageTypeName) || (!descriptorSetFileExisted && protoFiles.Length == 0);
             if (!descriptorSetFileExisted)
             {
 
