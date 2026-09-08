@@ -11,6 +11,7 @@ using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using Fiddler;
 using System.IO;
+using System.Xml;
 using System.Runtime.Serialization.Json;
 using System.Runtime.Serialization;
 using System.Web.Script.Serialization;
@@ -95,22 +96,26 @@ namespace Google.Protobuf.FiddlerInspector
                 if (null != body)
                 {
                     string[] protoFiles = FiddlerApp.LoadProtos(protoPath);
+                    bool isRaw;
 
-                    jsonString = Protobuf2Json.ConvertToJson(protoPath, protoFiles, descriptorSetUrl, messageTypeName, printEnumAsInteger, printPrimitiveFields, false, body);
+                    jsonString = Protobuf2Json.ConvertToJson(protoPath, protoFiles, descriptorSetUrl, messageTypeName, printEnumAsInteger, printPrimitiveFields, false, body, out isRaw);
                     object jsonObject = JsonParser.ParseJson(jsonString);
                     if (jsonObject == null)
                     {
                         tvJson.Nodes.Clear();
                         return;
                     }
-                    
-                    tvJson.Tag = jsonString;
+
 #if DEBUG || OUTPUT_PERF_LOG
                     FiddlerApplication.Log.LogString(inspectorContext.GetName() + " beginUpdate");
 #endif
                     TreeNode rootNode = new TreeNode("Protobuf");
 
-                    AddNode(jsonObject, rootNode);
+                    jsonObject = AddNode(jsonObject, rootNode, isRaw);
+                    if (isRaw)
+                        jsonString = FormatJson(new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Serialize(jsonObject));
+
+                    tvJson.Tag = jsonString;
 
                     tvJson.BeginUpdate();
                     try
@@ -139,51 +144,80 @@ namespace Google.Protobuf.FiddlerInspector
             }
         }
 
-        private void AddNode(object token, TreeNode node)
+        private static string FormatJson(string json)
+        {
+            using (MemoryStream input = new MemoryStream(Encoding.UTF8.GetBytes(json)))
+            using (XmlDictionaryReader reader = JsonReaderWriterFactory.CreateJsonReader(input, XmlDictionaryReaderQuotas.Max))
+            using (MemoryStream output = new MemoryStream())
+            {
+                using (XmlDictionaryWriter writer = JsonReaderWriterFactory.CreateJsonWriter(output, Encoding.UTF8, false, true, "  "))
+                    writer.WriteNode(reader, true);
+                return Encoding.UTF8.GetString(output.ToArray());
+            }
+        }
+
+        private static readonly UTF8Encoding RawUtf8 = new UTF8Encoding(false, true);
+
+        private object AddNode(object token, TreeNode node, bool isRaw)
         {
             const int maxValueLength = 4096;
 
             IDictionary dictionary = token as IDictionary;
             if (dictionary != null)
             {
-                foreach (DictionaryEntry item in dictionary)
-                {
-                    AddNode(item.Value, node.Nodes.Add(item.Key.ToString()));
-                }
-                return;
+                foreach (object key in new ArrayList(dictionary.Keys))
+                    dictionary[key] = AddNode(dictionary[key], node.Nodes.Add(key.ToString()), isRaw);
+                return dictionary;
             }
 
             IList list = token as IList;
             if (list != null)
             {
-                foreach (object item in list)
+                for (int i = 0; i < list.Count; i++)
                 {
-                    AddNode(item, item is IDictionary ? node.Nodes.Add("{}") : item is IList ? node.Nodes.Add("[]") : node);
+                    object item = list[i];
+                    list[i] = AddNode(item, item is IDictionary ? node.Nodes.Add("{}") : item is IList ? node.Nodes.Add("[]") : node, isRaw);
                 }
-                return;
+                return list;
             }
 
-            if (token != null)
+            if (token == null)
+                return null;
+
+            string value = token.ToString();
+            if (isRaw && token is string)
             {
-                string value = token.ToString();
-                bool isBinary = token is string && value.Take(maxValueLength).Any(c => char.IsControl(c) && c != '\t' && c != '\r' && c != '\n');
-                node.Tag = token;
-                if (isBinary)
+                string prefix = value.Substring(0, Math.Min(value.Length, maxValueLength));
+                if (prefix.Any(c => c > 127) && prefix.All(c => c <= 255) && value.All(c => c <= 255))
                 {
-                    node.Text += "=<binary data, " + value.Length + " bytes>";
-                    return;
+                    try
+                    {
+                        string decoded = RawUtf8.GetString(value.Select(c => (byte)c).ToArray());
+                        if (!decoded.Substring(0, Math.Min(decoded.Length, maxValueLength)).Any(c => char.IsControl(c) && c != '\t' && c != '\r' && c != '\n'))
+                            value = decoded;
+                    }
+                    catch (DecoderFallbackException) { }
                 }
-
-                bool truncated = value.Length > maxValueLength;
-                if (token is string)
-                {
-                    value = value.Substring(0, Math.Min(value.Length, maxValueLength));
-                    value = new JavaScriptSerializer().Serialize(value);
-                    value = value.Substring(1, value.Length - 2);
-                }
-
-                node.Text += "=" + value.Substring(0, Math.Min(value.Length, maxValueLength)) + (truncated || value.Length > maxValueLength ? "..." : "");
             }
+
+            bool isBinary = token is string && value.Take(maxValueLength).Any(c => char.IsControl(c) && c != '\t' && c != '\r' && c != '\n');
+            node.Tag = token is string ? value : token;
+            if (isBinary)
+            {
+                node.Text += "=<binary data, " + value.Length + " bytes>";
+                return node.Tag;
+            }
+
+            bool truncated = value.Length > maxValueLength;
+            if (token is string)
+            {
+                value = value.Substring(0, Math.Min(value.Length, maxValueLength));
+                value = new JavaScriptSerializer().Serialize(value);
+                value = value.Substring(1, value.Length - 2);
+            }
+
+            node.Text += "=" + value.Substring(0, Math.Min(value.Length, maxValueLength)) + (truncated || value.Length > maxValueLength ? "..." : "");
+            return node.Tag;
         }
 
         private void cmbMsgType_SelectedIndexChanged(object sender, EventArgs e)
@@ -262,8 +296,16 @@ namespace Google.Protobuf.FiddlerInspector
         {
             if (tvJson.SelectedNode != null)
             {
-                Clipboard.SetText(tvJson.SelectedNode.Text);
+                SetClipboardText(tvJson.SelectedNode.Text);
             }
+        }
+
+        private static void SetClipboardText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                Clipboard.Clear();
+            else
+                Clipboard.SetText(text);
         }
 
         private void copyValueToolStripMenuItem_Click(object sender, EventArgs e)
@@ -280,16 +322,16 @@ namespace Google.Protobuf.FiddlerInspector
                         text = text.Substring(1, text.Length - 2);
                     }
 
-                    Clipboard.SetText(text);
+                    SetClipboardText(text);
                     return;
                 }
 
                 String val = tvJson.SelectedNode.Text;
                 int pos = val.IndexOf('=');
                 if (pos == -1)
-                    Clipboard.SetText(val);
+                    SetClipboardText(val);
                 else
-                    Clipboard.SetText(val.Substring(pos + 1));
+                    SetClipboardText(val.Substring(pos + 1));
             }
         }
 
@@ -303,7 +345,7 @@ namespace Google.Protobuf.FiddlerInspector
                     return;
                 }
                 
-                Clipboard.SetText(jsonString);
+                SetClipboardText(jsonString);
             }
             catch (Exception ex)
             {
